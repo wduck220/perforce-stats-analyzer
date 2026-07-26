@@ -1,0 +1,15 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    ports:
+      - "5672:5672"
+
+  backend:
+    build: ./backend
+    depends_on:
+      - rabbitmq
+
+  analyzer:
+    build: ./analyzer
+    depends_on:
+      - rabbitmq

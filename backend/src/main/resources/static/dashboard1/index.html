@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Perforce Analytics · burgettakeout</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <script>
+
+    (function () {
+      try {
+        var saved = localStorage.getItem('dashboardTheme');
+        if (saved === 'light') document.documentElement.setAttribute('data-theme', 'light');
+      } catch (e) {}
+    })();
+  </script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+  <script src="js/chart-zoom.js"></script>
+  <script src="js/csv-export.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+  <script src="js/pdf-export.js"></script>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="#">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    Perforce Analytics
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-repo">burgettakeout</span>
+</nav>
+<div style="background:var(--s1);border-bottom:1px solid var(--border);padding:6px 24px;font-size:11px;color:var(--muted);display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+  <span>Репозиторий: <strong style="color:var(--text)">burgettakeout</strong></span>
+  <span style="color:var(--border)">|</span>
+  <span>Показан период: <strong style="color:var(--text)" id="gpCurrentRange">—</strong></span>
+  <span style="color:var(--border)">|</span>
+  <span>Авторов: <strong style="color:var(--text)" id="gpAuthorCount">—</strong></span>
+  <span style="color:var(--border)">|</span>
+  <span>Сабмитов: <strong style="color:var(--text)" id="gpSubmitCount">—</strong></span>
+  <span style="color:var(--border)">|</span>
+  <span style="display:flex;align-items:center;gap:6px;">
+    <label style="color:var(--muted)">Общий период:</label>
+    <select class="dsel" id="gpPreset" onchange="setGlobalPeriodPreset(this.value)" style="font-size:11px;">
+      <option value="all">За всё время</option>
+      <option value="30">Последние 30 дней</option>
+      <option value="90">Последние 90 дней</option>
+      <option value="180">Последние 180 дней</option>
+      <option value="custom">Свой диапазон…</option>
+    </select>
+    <input type="date" id="gpFrom" onchange="setGlobalPeriodCustom()" style="display:none;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:3px 5px;font-size:11px;font-family:var(--mono);">
+    <span id="gpDash" style="display:none;color:var(--muted)">→</span>
+    <input type="date" id="gpTo" onchange="setGlobalPeriodCustom()" style="display:none;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:3px 5px;font-size:11px;font-family:var(--mono);">
+  </span>
+  <button id="themeToggleBtn" onclick="toggleTheme()" style="font-size:11px;font-weight:600;
+    font-family:var(--font);padding:4px 11px;border-radius:5px;cursor:pointer;border:1px solid var(--border);
+    background:var(--s1);color:var(--muted);margin-left:auto;" title="Переключить светлую/тёмную тему">☀ Светлая тема</button>
+  <button onclick="openColorSettings()" style="font-size:11px;font-weight:600;
+    font-family:var(--font);padding:4px 11px;border-radius:5px;cursor:pointer;border:1px solid var(--border);
+    background:var(--s1);color:var(--muted);">Цвета</button>
+  <button onclick="exportAllToCSV()" style="font-size:11px;font-weight:600;
+    font-family:var(--font);padding:4px 11px;border-radius:5px;cursor:pointer;border:1px solid var(--border);
+    background:var(--s1);color:var(--muted);" title="Экспортировать все доступные таблицы/карточки в CSV разом">⇩ Экспорт всего в CSV</button>
+  <button onclick="exportAllToPDF()" style="font-size:11px;font-weight:600;
+    font-family:var(--font);padding:4px 11px;border-radius:5px;cursor:pointer;border:1px solid var(--border);
+    background:var(--s1);color:var(--muted);" title="Экспортировать весь дашборд (графики + таблицы) одним PDF-файлом">⇩ Экспорт всего в PDF</button>
+  <button onclick="resetAllFilters()" style="font-size:11px;font-weight:600;
+    font-family:var(--font);padding:4px 11px;border-radius:5px;cursor:pointer;border:1px solid var(--border);
+    background:var(--s1);color:var(--muted);">Сбросить все фильтры</button>
+  <button id="pdfPreviewToggle" onclick="togglePdfPreview()" style="font-size:11px;font-weight:600;
+    font-family:var(--font);padding:4px 11px;border-radius:5px;cursor:pointer;border:1px solid var(--orange);
+    background:rgba(240,136,62,.1);color:var(--orange);">Предпросмотр PDF</button>
+</div>
+
+<div id="tt"><div class="tt-date" id="tt-d"></div><div id="tt-r"></div></div>
+
+<div class="wrap">
+
+  <section class="sec">
+    <div class="sec-hd">Общий фильтр (применяется ко всем разделам)</div>
+    <div class="card cb" id="globalFilterPanel"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-hd">Обзор периода</div>
+    <div class="g4">
+      <div class="kpi"><div class="kpi-lbl"><svg width="14" height="14" viewBox="0 0 16 16" fill="var(--muted)"><path d="M11.93 8.5a4.002 4.002 0 01-7.86 0H.75a.75.75 0 010-1.5h3.32a4.002 4.002 0 017.86 0h3.32a.75.75 0 010 1.5h-3.32z"/></svg>Сабмитов</div><div class="kpi-val c-g" id="kv1">—</div><div class="kpi-sub" id="ks1"></div><div class="kpi-spark" id="kv1spark"></div></div>
+      <div class="kpi"><div class="kpi-lbl"><svg width="14" height="14" viewBox="0 0 16 16" fill="var(--muted)"><path d="M10.5 5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zm.061 3.073a4 4 0 10-5.123 0 6.004 6.004 0 00-3.431 5.142.75.75 0 001.498.07 4.5 4.5 0 018.99 0 .75.75 0 101.498-.07 6.005 6.005 0 00-3.432-5.142z"/></svg>Разработчиков</div><div class="kpi-val c-b" id="kv2">—</div><div class="kpi-sub" id="ks2"></div></div>
+      <div class="kpi"><div class="kpi-lbl"><svg width="14" height="14" viewBox="0 0 16 16" fill="var(--muted)"><path d="M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0113.25 16h-9.5A1.75 1.75 0 012 14.25V1.75z"/></svg>Файлов изменено</div><div class="kpi-val c-o" id="kv3">—</div><div class="kpi-sub" id="ks3"></div><div class="kpi-spark" id="kv3spark"></div></div>
+      <div class="kpi"><div class="kpi-lbl"><svg width="14" height="14" viewBox="0 0 16 16" fill="var(--muted)"><path d="M8.22 1.754a.25.25 0 00-.44 0L1.698 13.132a.25.25 0 00.22.368h12.164a.25.25 0 00.22-.368L8.22 1.754zm-1.763-.707c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0114.082 15H1.918a1.75 1.75 0 01-1.543-2.575L6.457 1.047zM9 11a1 1 0 11-2 0 1 1 0 012 0zm-.25-5.25a.75.75 0 00-1.5 0v2.5a.75.75 0 001.5 0v-2.5z"/></svg>Аномалий</div><div class="kpi-val c-r" id="kv4">—</div><div class="kpi-sub" id="ks4"></div></div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-hd">
+      Тепловая карта
+      <div class="sec-hd-right">
+        <div class="yr-switch">
+          <span class="yr-btn" id="yrPrev" onclick="shiftYear(-1)">‹</span>
+          <span class="yr-label" id="yrLabel"></span>
+          <span class="yr-btn" id="yrNext" onclick="shiftYear(1)">›</span>
+        </div>
+      </div>
+    </div>
+    <div class="hm-card">
+      <div class="hm-top">
+        <div class="hm-main">
+          <div class="cal-wrap" id="calWrap"></div>
+          <div class="hm-legend" id="hmLeg"></div>
+          <div class="drill" id="drill">
+            <div class="drill-hd">
+              <div class="drill-date" id="drillDate"></div>
+              <button class="csv-export-btn" onclick="exportDrillDayToCSV()">⇩ CSV (весь день)</button>
+              <button class="pdf-export-btn" onclick="pdfHeatmapDayExport()">⇩ PDF</button>
+              <button class="drill-close" onclick="closeDrill()">Закрыть</button>
+            </div>
+            <div class="cl-list scroll-box scroll-box-lg" id="clList"></div>
+          </div>
+        </div>
+        <div class="hm-sidebar">
+          <div class="hm-sidebar-controls">
+            <div class="sb-title">Авторы / Воркспейсы</div>
+            <div id="userToggles"></div>
+            <div class="sb-title" style="margin-top:14px">Депо</div>
+            <div id="df_heatmap"></div>
+            <div class="sb-title" style="margin-top:14px">Группировка</div>
+            <div id="hmGroupByPill"></div>
+            <div class="sb-title" style="margin-top:14px">Показатель</div>
+            <div id="hmMetricPill"></div>
+            <div id="hmDimensionFilter" style="margin-top:8px"></div>
+            <div class="sb-title" style="margin-top:14px">Период</div>
+            <div id="lpWrap_heatmap"></div>
+            <button class="csv-export-btn" style="margin-top:8px" onclick="exportHeatmapToCSV()">⇩ CSV</button>
+            <button class="pdf-export-btn" style="margin-top:8px" onclick="pdfHeatmapExport()">⇩ PDF</button>
+          </div>
+        </div>
+      </div>
+      <div class="print-filter-summary" id="pfs_heatmap"></div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-hd">Распределение активности</div>
+    <div class="card cb">
+      <div class="dist-filters">
+        <span class="dist-filters-lbl">Фильтры</span>
+        <div id="df_dist"></div>
+        <div id="avgUBtns"></div>
+        <div id="avgGroupByPill"></div>
+        <div id="avgMetricPill"></div>
+        <div id="avgMetricFilter"></div>
+        <div id="lpWrap_dist"></div>
+      </div>
+      <div class="avg-ctrls">
+        <div>
+          <div class="ct" id="avgTitle">Среднее по часам дня</div>
+          <div class="cs" style="margin-bottom:0">среднее количество сабмитов за единицу времени</div>
+        </div>
+        <div id="avgPeriodPill"></div>
+      </div>
+      <div style="position:relative;height:180px;"><div class="chart-zoom-wrap" style="position:relative;height:100%">
+        <canvas id="avgChart"></canvas>
+        <button class="chart-zoom-btn" onclick="openCzm('avgChart','Распределение активности')" title="Развернуть">⤢</button>
+        <button class="csv-export-btn" style="position:absolute;top:8px;right:38px;" onclick="exportChartToCSV('avgChart','distribution.csv')">⇩ CSV</button>
+        <button class="pdf-export-btn" style="position:absolute;top:8px;right:96px;" onclick="pdfFromChart('Distribution','avgChart','distribution.pdf','dist',true)">⇩ PDF</button>
+      </div></div>
+      <div id="avgChartLegend"></div>
+      <div class="print-filter-summary" id="pfs_dist"></div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-hd">
+      Динамика сабмитов
+    </div>
+    <div class="card cb">
+      <div class="dist-filters">
+        <span class="dist-filters-lbl">Фильтры</span>
+        <div id="df_trend"></div>
+        <div id="usrTrendBtns"></div>
+        <div id="trendGroupByPill"></div>
+        <div id="trendGranPill"></div>
+        <div id="trendMetricPill"></div>
+        <div id="trendMetricFilter"></div>
+        <div id="lpWrap_trend"></div>
+      </div>
+      <div class="ct" id="trendTitle">По неделям</div>
+      <div class="cs" id="trendSub">стек по авторам · количество сабмитов за каждую неделю</div>
+      <div style="position:relative;height:200px;"><div class="chart-zoom-wrap" style="position:relative;height:100%">
+        <canvas id="weekChart"></canvas>
+        <button class="chart-zoom-btn" onclick="openCzm('weekChart','Динамика сабмитов')" title="Развернуть">⤢</button>
+        <button class="csv-export-btn" style="position:absolute;top:8px;right:38px;" onclick="exportChartToCSV('weekChart','trend.csv')">⇩ CSV</button>
+        <button class="pdf-export-btn" style="position:absolute;top:8px;right:96px;" onclick="pdfFromChart('Trend','weekChart','trend.pdf','trend',true)">⇩ PDF</button>
+      </div></div>
+      <div id="trendChartLegend"></div>
+      <div class="print-filter-summary" id="pfs_trend"></div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-hd">Авторы <button class="csv-export-btn" style="margin-left:10px;" onclick="exportAllAuthorsToCSV()">⇩ CSV (всё сразу)</button> <button class="pdf-export-btn" onclick="exportAuthorsFullToPDF()">⇩ PDF (всё сразу)</button></div>
+
+    <div class="blk-filter-bar" id="bf_cards">
+      <span class="blk-filter-lbl">Карточки авторов</span>
+      <div class="dist-filters" style="margin-bottom:0">
+        <div id="df_cards"></div>
+        <div id="ws_cards"></div>
+        <div id="cardsGroupByPill"></div>
+        <div id="lpWrap_cards"></div>
+        <button class="csv-export-btn" onclick="exportAuthorsFullToCSV()">⇩ CSV (все показатели)</button>
+        <button class="pdf-export-btn" onclick="exportAuthorsFullToPDF()">⇩ PDF (все показатели)</button>
+        <button class="csv-export-btn" onclick="exportAuthorCardsBundleToCSV()">⇩ CSV (показатели+файлы+активность)</button>
+        <button class="pdf-export-btn" onclick="exportAuthorCardsBundleToPDF()">⇩ PDF (показатели+файлы+активность)</button>
+      </div>
+    </div>
+    <div class="user-grid" id="userGrid" style="margin-bottom:12px;"></div>
+    <div class="print-filter-summary" id="pfs_cards"></div>
+
+    <div class="card cb author-donut-card" style="margin-bottom:12px;">
+      <div class="author-donut-head">
+        <div>
+          <div class="ct">Доля от сабмитов</div>
+          <div class="cs" id="authorDonutSub" style="margin-bottom:0">по авторам</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div id="authorDonutGroupByPill"></div>
+          <button class="pdf-export-btn" onclick="exportAuthorDonutToPDF()">⇩ PDF</button>
+        </div>
+      </div>
+      <div class="author-donut-body">
+        <div class="author-donut-canvas-wrap">
+          <canvas id="authorDonutChart"></canvas>
+        </div>
+        <div id="authorDonutLegend" class="author-donut-legend"></div>
+      </div>
+    </div>
+
+    <div class="card cb" style="margin-bottom:12px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <div>
+          <div class="ct">Кластеризация</div>
+          <div class="cs" style="margin-bottom:0">K-Means по агрегированному профилю поведения (файлы/объём/паузы/выходные) — та же логика, что и в реальном пайплайне (aggregate_by_user + run_kmeans)</div>
+        </div>
+        <div id="authorClusterGroupByPill"></div>
+      </div>
+      <div class="dist-filters" style="margin-bottom:0;margin-top:8px">
+        <div id="df_authorcluster"></div>
+        <div id="ws_authorcluster"></div>
+        <div id="lpWrap_authorcluster"></div>
+      </div>
+      <div class="anom-top-grid anom-top-grid--2col" style="margin-top:12px">
+        <div id="authorClusterInfo"></div>
+        <div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:6px">
+            <select class="dsel" onchange="setAuthorClusterAxis('x', this.value)">
+              <option value="avgFiles">X: Ср. файлов</option>
+              <option value="vol">X: Объём, ГБ</option>
+              <option value="avgGap">X: Ср. пауза</option>
+              <option value="weekendPct">X: % в выходные</option>
+              <option value="gbPerCommit">X: ГБ/сабмит</option>
+            </select>
+            <select class="dsel" onchange="setAuthorClusterAxis('y', this.value)">
+              <option value="avgFiles">Y: Ср. файлов</option>
+              <option value="vol" selected>Y: Объём, ГБ</option>
+              <option value="avgGap">Y: Ср. пауза</option>
+              <option value="weekendPct">Y: % в выходные</option>
+              <option value="gbPerCommit">Y: ГБ/сабмит</option>
+            </select>
+          </div>
+          <div style="position:relative;height:170px"><div class="chart-zoom-wrap" style="position:relative;height:100%">
+            <canvas id="authorClusterChart"></canvas>
+            <button class="chart-zoom-btn" onclick="openCzm('authorClusterChart','Кластеризация авторов')" title="Развернуть">⤢</button>
+            <button class="csv-export-btn" style="position:absolute;top:8px;right:38px;" onclick="exportChartToCSV('authorClusterChart','authors_clustering.csv')">⇩ CSV</button>
+            <button class="pdf-export-btn" style="position:absolute;top:8px;right:96px;" onclick="pdfFromChart('Authors Clustering','authorClusterChart','authors_clustering.pdf','authorcluster',true)">⇩ PDF</button>
+          </div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="g2">
+
+      <div class="card cb">
+        <div class="blk-filter-bar blk-filter-bar--incard" id="bf_bar">
+          <span class="blk-filter-lbl">Сравнение</span>
+          <div class="dist-filters" style="margin-bottom:0">
+            <div id="df_bar"></div>
+            <div id="ws_bar"></div>
+
+            <div id="barGroupByPill"></div>
+            <div id="lpWrap_bar"></div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <div>
+            <div class="ct" id="userBarTitle">Сравнение: Сабмиты</div>
+            <div class="cs" id="userBarSub" style="margin-bottom:0">по авторам</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            <select class="dsel" id="userVizSelect" onchange="setUserViz(this.value)">
+              <option value="commits">Сабмиты</option>
+              <option value="files">Файлы</option>
+              <option value="volume">Объём (ГБ)</option>
+              <option value="avg_files">Ср. файлов / сабмит</option>
+              <option value="avg_gap">Ср. интервал (ч)</option>
+              <option value="anomalies">Аномалии</option>
+              <option value="streak">Макс. streak</option>
+              <option value="weekend">% в выходные</option>
+            </select>
+          </div>
+        </div>
+        <div id="userBarChartWrap" style="position:relative;height:180px;margin-top:10px"><div class="chart-zoom-wrap" style="position:relative;height:100%">
+          <canvas id="userBarChart"></canvas>
+          <button class="chart-zoom-btn" onclick="openCzm('userBarChart','Сравнение')" title="Развернуть">⤢</button>
+          <button class="csv-export-btn" style="position:absolute;top:8px;right:38px;" onclick="exportChartToCSV('userBarChart','authors_comparison.csv')">⇩ CSV</button>
+          <button class="pdf-export-btn" style="position:absolute;top:8px;right:96px;" onclick="pdfFromChart('Authors Comparison','userBarChart','authors_comparison.pdf','bar',true)">⇩ PDF</button>
+        </div></div>
+        <div id="userBarChartLegend"></div>
+        <div class="print-filter-summary" id="pfs_bar"></div>
+      </div>
+
+      <div class="card cb">
+        <div class="blk-filter-bar blk-filter-bar--incard" id="bf_scatter">
+          <span class="blk-filter-lbl">Scatter</span>
+          <div class="dist-filters" style="margin-bottom:0">
+            <div id="df_scatter"></div>
+            <div id="ws_scatter"></div>
+
+            <div id="scatterColorByPill"></div>
+            <div id="lpWrap_scatter"></div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <div>
+            <div class="ct" id="scatterTitle">Файлов vs Размер</div>
+            <div class="cs" id="scatterSub" style="margin-bottom:0">каждая точка — сабмит</div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <select class="dsel" id="scatterSelect" onchange="setScatter(this.value)">
+              <option value="files_size">Файлов / Размер</option>
+              <option value="files_time">Файлов / Час</option>
+              <option value="size_rev">Размер / Ревизии</option>
+              <option value="files_cluster">Файлов / Кластерность</option>
+            </select>
+          </div>
+        </div>
+        <div style="position:relative;height:180px;margin-top:10px"><div class="chart-zoom-wrap" style="position:relative;height:100%">
+          <canvas id="scatterChart"></canvas>
+          <button class="chart-zoom-btn" onclick="openCzm('scatterChart','Scatter')" title="Развернуть">⤢</button>
+          <button class="csv-export-btn" style="position:absolute;top:8px;right:38px;" onclick="exportChartToCSV('scatterChart','authors_scatter.csv')">⇩ CSV</button>
+          <button class="pdf-export-btn" style="position:absolute;top:8px;right:96px;" onclick="pdfFromChart('Authors Scatter','scatterChart','authors_scatter.pdf','scatter',true)">⇩ PDF</button>
+        </div></div>
+
+        <div id="scatterWsLegend"></div>
+        <div class="print-filter-summary" id="pfs_scatter"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-hd">Файлы</div>
+    <div class="g2">
+
+      <div class="card cb">
+        <div class="blk-filter-bar blk-filter-bar--incard">
+          <span class="blk-filter-lbl">Топ файлов</span>
+          <div class="dist-filters" style="margin-bottom:0">
+            <div id="df_filetable"></div>
+            <div id="ext_filetable"></div>
+            <div id="lpWrap_filetable"></div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-top:10px;margin-bottom:4px;">
+          <div>
+            <div class="ct" id="fileVizTitle">Топ расширений</div>
+            <div class="cs" id="fileVizSub" style="margin-bottom:0">по количеству файлов</div>
+          </div>
+          <select class="dsel" id="fileVizSelect" onchange="setFileViz(this.value)">
+            <option value="ext">Топ расширений</option>
+            <option value="size">Топ по объёму</option>
+            <option value="user">По авторам</option>
+            <option value="action">По действию</option>
+            <option value="depot">По депо</option>
+          </select>
+          <label id="fileVizLimitWrap" style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)">
+            Показать топ
+            <input type="number" id="fileVizLimitInput" min="1" value="10" onchange="setFileVizLimit(this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="width:52px;background:var(--s1);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 5px;font-family:var(--mono)">
+          </label>
+          <button class="csv-export-btn" onclick="exportBarTableToCSV('extTable','files_top.csv',['Category','Value'])" title="Экспортировать в CSV">⇩ CSV</button>
+          <button class="pdf-export-btn" onclick="pdfFromBarTable('Top Files','extTable',['Category','Value'],'files_top.pdf',null,'filetable',false)">⇩ PDF</button>
+        </div>
+        <div class="scroll-box"><table class="bar-tbl" id="extTable" style="margin-top:10px;"></table></div>
+      </div>
+
+      <div class="card cb">
+        <div class="blk-filter-bar blk-filter-bar--incard">
+          <span class="blk-filter-lbl">Расширения / действия</span>
+          <div class="dist-filters" style="margin-bottom:0">
+            <div id="df_filestack"></div>
+            <div id="ext_filestack"></div>
+            <div id="lpWrap_filestack"></div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:10px">
+          <div>
+            <div class="ct" id="fileStackTitle">Расширения</div>
+            <div class="cs" id="fileStackSub" style="margin-bottom:10px">топ расширений — стек по авторам</div>
+          </div>
+          <select class="dsel" id="fileStackSelect" onchange="setFileStack(this.value)">
+            <option value="ext">Расширения</option>
+            <option value="action">Действия</option>
+            <option value="ext_time">Расширения по времени</option>
+          </select>
+          <div id="fileStackGroupByPill"></div>
+        </div>
+        <div style="position:relative;height:200px;"><div class="chart-zoom-wrap" style="position:relative;height:100%">
+          <canvas id="fileStackChart"></canvas>
+          <button class="chart-zoom-btn" onclick="openCzm('fileStackChart','Расширения по авторам')" title="Развернуть">⤢</button>
+          <button class="csv-export-btn" style="position:absolute;top:8px;right:38px;" onclick="exportChartToCSV('fileStackChart','files_extensions.csv')">⇩ CSV</button>
+          <button class="pdf-export-btn" style="position:absolute;top:8px;right:96px;" onclick="pdfFromChart('Files Extensions','fileStackChart','files_extensions.pdf','filestack',false)">⇩ PDF</button>
+        </div></div>
+        <div id="fileStackChartLegend"></div>
+      </div>
+    </div>
+
+    <div class="card cb" style="margin-top:16px;">
+      <div class="blk-filter-bar blk-filter-bar--incard">
+        <span class="blk-filter-lbl">Совместная встречаемость</span>
+        <div class="dist-filters" style="margin-bottom:0">
+          <div id="df_cooccur"></div>
+          <div id="ext_cooccur"></div>
+            <div id="lpWrap_cooccur"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:10px">
+        <div>
+          <div class="ct">Совместная встречаемость</div>
+          <div class="cs" id="cooccurSub" style="margin-bottom:0">какие расширения чаще всего меняются в одном сабмите</div>
+        </div>
+        <select class="dsel" onchange="setCooccurrenceMode(this.value)">
+          <option value="ext">Расширения</option>
+          <option value="action">Действия</option>
+          <option value="ext_action">Расширение + действие</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)">
+          Показать топ
+          <input type="number" id="cooccurLimitInput" min="1" value="8" onchange="setCooccurrenceLimit(this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="width:52px;background:var(--s1);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 5px;font-family:var(--mono)">
+        </label>
+        <button class="csv-export-btn" onclick="exportBarTableToCSV('cooccurTable','files_cooccurrence.csv',['Combination','Times together'])" title="Экспортировать в CSV">⇩ CSV</button>
+        <button class="pdf-export-btn" onclick="pdfFromBarTable('Files Co-occurrence','cooccurTable',['Combination','Times together'],'files_cooccurrence.pdf',null,'cooccur',false)">⇩ PDF</button>
+      </div>
+      <div class="scroll-box">
+      <table class="bar-tbl" id="cooccurTable" style="margin-top:10px;"></table>
+      </div>
+    </div>
+
+    <div class="card cb" style="margin-top:16px;">
+      <div class="blk-filter-bar blk-filter-bar--incard">
+        <span class="blk-filter-lbl">Кластеризация</span>
+        <div class="dist-filters" style="margin-bottom:0">
+          <div id="df_filecluster"></div>
+          <div id="ext_filecluster"></div>
+            <div id="lpWrap_filecluster"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:10px">
+        <div>
+          <div class="ct">Кластеризация</div>
+          <div class="cs" id="fileClusterSub" style="margin-bottom:0">какие конкретные файлы чаще всего меняются в одном сабмите</div>
+        </div>
+        <select class="dsel" onchange="setFileClusterMode(this.value)">
+          <option value="cooccur_files">Совместное изменение файлов</option>
+          <option value="churn_age">Churn vs Age (легаси)</option>
+          <option value="conflict">Конфликтный потенциал</option>
+          <option value="cluster_types">Кластеры по типам файлов</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)">
+          Показать топ
+          <input type="number" id="fileClusterLimitInput" min="1" value="8" onchange="setFileClusterLimit(this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="width:52px;background:var(--s1);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 5px;font-family:var(--mono)">
+        </label>
+        <button class="csv-export-btn" onclick="exportBarTableToCSV('fileClusterTable','files_clustering.csv',['Category','Value'])" title="Экспортировать в CSV">⇩ CSV</button>
+        <button class="pdf-export-btn" onclick="exportFileClusteringToPDF()">⇩ PDF</button>
+      </div>
+      <div class="scroll-box"><table class="bar-tbl" id="fileClusterTable" style="margin-top:10px;"></table></div>
+      <div id="fileClusterChartWrap" style="display:none;position:relative;height:220px;margin-top:12px"><div class="chart-zoom-wrap" style="position:relative;height:100%">
+        <canvas id="fileClusterChart"></canvas>
+        <button class="chart-zoom-btn" onclick="openCzm('fileClusterChart','Кластеризация по типам файлов')" title="Развернуть">⤢</button>
+        <button class="csv-export-btn" style="position:absolute;top:8px;right:38px;" onclick="exportChartToCSV('fileClusterChart','files_clustering_chart.csv')">⇩ CSV</button>
+        <button class="pdf-export-btn" style="position:absolute;top:8px;right:96px;" onclick="exportFileClusteringToPDF()">⇩ PDF</button>
+      </div></div>
+    </div>
+
+    <div class="card cb" style="margin-top:16px;">
+      <div class="blk-filter-bar blk-filter-bar--incard">
+        <span class="blk-filter-lbl">Корреляции</span>
+        <div class="dist-filters" style="margin-bottom:0">
+          <div id="df_filecorrel"></div>
+          <div id="ext_filecorrel"></div>
+            <div id="lpWrap_filecorrel"></div>
+        </div>
+      </div>
+      <div class="ct" style="margin-top:10px">Корреляции
+        <button class="csv-export-btn" style="margin-left:8px;vertical-align:middle;" onclick="exportCorrelationsToCSV('fileCorrelTable','files_correlations.csv')" title="Экспортировать в CSV">⇩ CSV (таблицы)</button>
+        <button class="pdf-export-btn" style="margin-left:4px;vertical-align:middle;" onclick="exportCorrelationsToPDF()">⇩ PDF</button>
+        <button class="csv-export-btn" style="margin-left:4px;vertical-align:middle;" onclick="exportChartToCSV('fileCorrelChart','files_correlations_chart.csv')" title="Экспортировать график в CSV">⇩ CSV (график)</button>
+      </div>
+      <div class="cs" style="margin-bottom:0">связь между метриками сабмита (Пирсон) и между депо/расширением (Крамера V)</div>
+      <div id="fileCorrelTable" style="margin-top:12px"></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:12px">
+        <select class="dsel" onchange="setFileCorrelPair(this.value)">
+          <option value="0">График: Число файлов × Объём</option>
+          <option value="1">График: Число файлов × Средний размер</option>
+          <option value="2">График: Объём × Средний размер</option>
+        </select>
+      </div>
+      <div style="position:relative;height:180px;margin-top:8px"><div class="chart-zoom-wrap" style="position:relative;height:100%">
+        <canvas id="fileCorrelChart"></canvas>
+        <button class="chart-zoom-btn" onclick="openCzm('fileCorrelChart','Корреляции')" title="Развернуть">⤢</button>
+      </div></div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-hd">Аномалии</div>
+    <div class="card cb">
+      <div style="margin-bottom:16px">
+        <div id="anomLevelPill"></div>
+        <div id="lpWrap_anomalies" style="margin-top:10px"></div>
+        <button class="csv-export-btn" style="margin-top:8px" onclick="exportAnomaliesFullToCSV()">⇩ CSV (все аномалии подробно)</button>
+        <button class="pdf-export-btn" style="margin-top:8px" onclick="exportAllAnomaliesToPDF()" title="Всё сразу: график, сабмиты, детализация по методам, все 4 блока-разбивки">⇩ PDF (весь отчёт)</button>
+      </div>
+
+      <div class="anom-chart-wrap">
+        <div class="anom-sub-title-row">
+          <div class="anom-sub-title" id="anomChartTitle">Объём по дням</div>
+          <select class="dsel" onchange="setAnomChartMetric(this.value)">
+            <option value="total_size">Объём, ГБ</option>
+            <option value="file_count">Число файлов</option>
+            <option value="submit_count">Число сабмитов</option>
+            <option value="avg_size">Средний размер файла</option>
+          </select>
+        </div>
+        <div style="position:relative;height:200px"><div class="chart-zoom-wrap" style="position:relative;height:100%">
+          <canvas id="anomChart"></canvas>
+          <button class="chart-zoom-btn" onclick="openCzm('anomChart','Аномалии')" title="Развернуть">⤢</button>
+          <button class="pdf-export-btn" style="position:absolute;top:8px;right:38px;" onclick="exportAnomaliesToPDF()">⇩ PDF</button>
+        </div></div>
+      </div>
+
+      <div id="anomSubmitsView">
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:16px">
+          <div>
+            <div class="ct">Аномалии <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:8px">IQR + Z-score (личная норма автора) + Isolation Forest + LOF (многомерно, с учётом депо/воркспейса) · voting ≥ 2 из 4</span></div>
+          </div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <label style="font-size:11px;color:var(--muted);">Автор:</label>
+              <select class="dsel" id="anomUser" onchange="renderAnomalies()">
+                <option value="all">Все</option>
+                <option value="kruzhka">kruzhka</option>
+                <option value="hineline">hineline</option>
+                <option value="petrov">petrov</option>
+              </select>
+            </div>
+            <span style="font-size:11px;color:var(--muted);font-family:var(--mono);" id="anomCount"></span>
+          </div>
+        </div>
+
+        <div class="anom-top-grid anom-top-grid--2col" style="margin-top:12px">
+          <div class="anom-breakdown-wrap">
+            <div class="anom-sub-title-row">
+              <div class="anom-sub-title">Доля аномалий</div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div id="anomGroupByPill"></div>
+                <button class="csv-export-btn" onclick="exportAnomBreakdownToCSV('anomGroupBreakdown','anomalies_share_by_group.csv',['Group','Count (Share)'])">⇩ CSV</button>
+                <button class="pdf-export-btn" onclick="pdfFromDivRows('Anomalies - Share by Group','#anomGroupBreakdown','.anom-breakdown-row',['Group','Count (Share)'],'anomalies_share_by_group.pdf','anomalies',false)">⇩ PDF</button>
+              </div>
+            </div>
+            <div id="anomGroupBreakdown"></div>
+          </div>
+          <div class="anom-breakdown-wrap">
+            <div class="anom-sub-title-row">
+              <div class="anom-sub-title">Комбинации признаков</div>
+              <button class="csv-export-btn" onclick="exportAnomBreakdownToCSV('anomBreakdown','anomalies_feature_combos.csv',['Combination','Count (Share)'])">⇩ CSV</button>
+              <button class="pdf-export-btn" onclick="pdfFromDivRows('Anomalies - Feature Combos','#anomBreakdown','.anom-breakdown-row',['Combination','Count (Share)'],'anomalies_feature_combos.pdf','anomalies',false)">⇩ PDF</button>
+            </div>
+            <div id="anomBreakdown"></div>
+          </div>
+        </div>
+        <div class="anom-top-grid anom-top-grid--2col" style="margin-top:12px">
+          <div class="anom-breakdown-wrap">
+            <div class="anom-sub-title-row">
+              <div class="anom-sub-title">Согласие методов</div>
+              <button class="csv-export-btn" onclick="exportAnomBreakdownToCSV('anomMethodBreakdown','anomalies_method_agreement.csv',['Method pair','Count (Share)'])">⇩ CSV</button>
+              <button class="pdf-export-btn" onclick="pdfFromDivRows('Anomalies - Method Agreement','#anomMethodBreakdown','.anom-breakdown-row',['Method pair','Count (Share)'],'anomalies_method_agreement.pdf','anomalies',false)">⇩ PDF</button>
+            </div>
+            <div id="anomMethodBreakdown"></div>
+          </div>
+          <div class="anom-breakdown-wrap">
+            <div class="anom-sub-title-row">
+              <div class="anom-sub-title">Чем аномалии в среднем отличаются от нормы (top differing features)</div>
+              <button class="csv-export-btn" onclick="exportAnomBreakdownToCSV('anomTopDiffFeatures','anomalies_top_differing_features.csv',['Feature','Value'])">⇩ CSV</button>
+              <button class="pdf-export-btn" onclick="pdfFromDivRows('Anomalies - Top Differing Features','#anomTopDiffFeatures','.anom-breakdown-row',['Feature','Value'],'anomalies_top_differing_features.pdf','anomalies',false)">⇩ PDF</button>
+            </div>
+            <div id="anomTopDiffFeatures"></div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;flex-wrap:wrap">
+          <div class="anom-sub-title" style="margin-bottom:0">Список аномальных сабмитов</div>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <label style="font-size:11px;color:var(--muted);">Признак:</label>
+              <select class="dsel" id="anomType" onchange="renderAnomalies()">
+                <option value="all">Все</option>
+                <option value="file_count">file_count</option>
+                <option value="total_size">total_size</option>
+                <option value="hour">hour</option>
+                <option value="avg_size">avg_size</option>
+                <option value="ext_unusual">ext_unusual</option>
+              </select>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <label style="font-size:11px;color:var(--muted);">Показать топ:</label>
+              <input type="number" id="anomTopNSubmits" value="5" min="1" onchange="renderAnomalies()" onkeydown="if(event.key==='Enter')this.blur()"
+                     style="width:50px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:3px 6px;font-size:11px;font-family:var(--mono);outline:none;">
+            </div>
+            <button class="csv-export-btn" onclick="exportHtmlTableToCSV('anomTableSubmits','anomalies_submits.csv')">⇩ CSV</button>
+            <button class="pdf-export-btn" onclick="pdfFromHtmlTable('Anomalies - Submits','anomTableSubmits','anomalies_submits.pdf',null,'anomalies',false)">⇩ PDF</button>
+          </div>
+        </div>
+        <div class="scroll-box scroll-box-lg">
+        <table class="tbl" id="anomTableSubmits" style="margin-top:8px">
+          <thead><tr><th>CL</th><th>Автор</th><th>Файлов</th><th>Размер</th><th>Дата</th><th>Признак</th></tr></thead>
+          <tbody id="anomalyBody"></tbody>
+        </table>
+        </div>
+      </div>
+
+      <div id="anomAggregateView" style="display:none">
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:12px;margin-top:16px">
+          <div>
+            <div class="ct" id="anomAggregateTitle" style="margin-bottom:0"></div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">IQR + Z-score + Isolation Forest + LOF (многомерно) · voting ≥ 1 из 4</div>
+          </div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div id="anomAggDepotFilterWrap"><div id="df_anomagg"></div></div>
+            <div id="ws_anomagg"></div>
+            <span style="font-size:11px;color:var(--muted);font-family:var(--mono);" id="anomAggregateCount"></span>
+          </div>
+        </div>
+
+        <div class="anom-top-grid anom-top-grid--2col">
+          <div class="anom-breakdown-wrap">
+            <div class="anom-sub-title-row">
+              <div class="anom-sub-title">Комбинации признаков</div>
+              <button class="csv-export-btn" onclick="exportAnomBreakdownToCSV('anomAggCombos','anomalies_agg_feature_combos.csv',['Combination','Count (Share)'])">⇩ CSV</button>
+              <button class="pdf-export-btn" onclick="pdfFromDivRows('Anomalies Aggregate - Feature Combos','#anomAggCombos','.anom-breakdown-row',['Combination','Count (Share)'],'anomalies_agg_feature_combos.pdf','anomalies',false)">⇩ PDF</button>
+            </div>
+            <div id="anomAggCombos"></div>
+          </div>
+          <div class="anom-breakdown-wrap">
+            <div class="anom-sub-title-row">
+              <div class="anom-sub-title">Согласие методов</div>
+              <button class="csv-export-btn" onclick="exportAnomBreakdownToCSV('anomAggMethods','anomalies_agg_method_agreement.csv',['Method pair','Count (Share)'])">⇩ CSV</button>
+              <button class="pdf-export-btn" onclick="pdfFromDivRows('Anomalies Aggregate - Method Agreement','#anomAggMethods','.anom-breakdown-row',['Method pair','Count (Share)'],'anomalies_agg_method_agreement.pdf','anomalies',false)">⇩ PDF</button>
+            </div>
+            <div id="anomAggMethods"></div>
+          </div>
+        </div>
+        <div class="anom-breakdown-wrap" style="margin-top:12px">
+          <div class="anom-sub-title-row">
+            <div class="anom-sub-title">Чем аномалии в среднем отличаются от нормы</div>
+            <button class="csv-export-btn" onclick="exportAnomBreakdownToCSV('anomAggTopDiff','anomalies_agg_top_differing_features.csv',['Feature','Value'])">⇩ CSV</button>
+            <button class="pdf-export-btn" onclick="pdfFromDivRows('Anomalies Aggregate - Top Differing Features','#anomAggTopDiff','.anom-breakdown-row',['Feature','Value'],'anomalies_agg_top_differing_features.pdf','anomalies',false)">⇩ PDF</button>
+          </div>
+          <div id="anomAggTopDiff"></div>
+        </div>
+        <div class="anom-breakdown-wrap" id="anomDaysRateWrap" style="margin-top:12px;display:none">
+          <div class="anom-sub-title-row">
+            <div class="anom-sub-title">Доля аномальных дней</div>
+            <select class="dsel" onchange="setAnomDaysRateBy(this.value)">
+              <option value="dow">по дню недели</option>
+              <option value="month">по месяцу</option>
+            </select>
+            <button class="csv-export-btn" onclick="exportAnomBreakdownToCSV('anomDaysRate','anomalies_days_rate.csv',['Day/Month','Share'])">⇩ CSV</button>
+            <button class="pdf-export-btn" onclick="pdfFromDivRows('Anomalies - Days Rate','#anomDaysRate','.anom-breakdown-row',['Day/Month','Share'],'anomalies_days_rate.pdf','anomalies',false)">⇩ PDF</button>
+          </div>
+          <div id="anomDaysRate"></div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;flex-wrap:wrap">
+          <div class="anom-sub-title" style="margin-bottom:0">Список аномальных сущностей</div>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <label style="font-size:11px;color:var(--muted);">Признак:</label>
+              <select class="dsel" id="anomAggType" onchange="renderAnomalies()">
+                <option value="all">Все</option>
+              </select>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <label style="font-size:11px;color:var(--muted);">Показать топ:</label>
+              <input type="number" id="anomTopNAggregate" value="5" min="1" onchange="renderAnomalies()" onkeydown="if(event.key==='Enter')this.blur()"
+                     style="width:50px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:3px 6px;font-size:11px;font-family:var(--mono);outline:none;">
+            </div>
+            <button class="csv-export-btn" onclick="exportHtmlTableToCSV('anomTableAggregate','anomalies_aggregate.csv')">⇩ CSV</button>
+            <button class="pdf-export-btn" onclick="pdfFromHtmlTable('Anomalies - Aggregate','anomTableAggregate','anomalies_aggregate.pdf',null,'anomalies',false)">⇩ PDF</button>
+          </div>
+        </div>
+        <div class="scroll-box scroll-box-lg">
+        <table class="tbl" id="anomTableAggregate" style="margin-top:8px">
+          <thead id="anomAggregateHead"></thead>
+          <tbody id="anomAggregateBody"></tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-hd">Ассоциативные правила (Apriori)</div>
+    <div class="card">
+      <div class="cb" style="padding-bottom:0">
+        <div class="ct">Частые паттерны в сабмитах</div>
+        <div class="cs">если A → то с вероятностью confidence встречается B · lift &gt; 1 неслучайная связь · считается по реальным сабмитам</div>
+      </div>
+
+      <div style="padding:0 14px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+        <select class="dsel" onchange="setApChartAxis('x', this.value)">
+          <option value="sup">X: Support</option>
+          <option value="conf">X: Confidence</option>
+          <option value="lift">X: Lift</option>
+        </select>
+        <select class="dsel" onchange="setApChartAxis('y', this.value)">
+          <option value="sup">Y: Support</option>
+          <option value="conf" selected>Y: Confidence</option>
+          <option value="lift">Y: Lift</option>
+        </select>
+      </div>
+      <div style="padding:8px 14px 14px;position:relative;height:220px"><div class="chart-zoom-wrap" style="position:relative;height:100%">
+        <canvas id="apChart"></canvas>
+        <button class="chart-zoom-btn" onclick="openCzm('apChart','Apriori — Support × Confidence')" title="Развернуть">⤢</button>
+
+      </div></div>
+
+      <div class="ap-filters">
+        <div id="lpWrap_apriori"></div>
+        <button class="csv-export-btn" onclick="exportApRulesToCSV('apriori_rules.csv')">⇩ CSV</button>
+        <button class="pdf-export-btn" onclick="exportApRulesToPDF()">⇩ PDF</button>
+        <div class="ap-f"><label>Показать максимум</label><input type="number" id="apMax" value="10" min="1" oninput="renderApriori()" onblur="apClampField('apMax')" onkeydown="if(event.key==='Enter')this.blur()"></div>
+        <div class="ap-f"><label>Lift ≥</label><input type="number" id="apLift" value="1" min="0" step="0.1" oninput="renderApriori()" onblur="apClampField('apLift')" onkeydown="if(event.key==='Enter')this.blur()"></div>
+        <div class="ap-f"><label>Confidence ≥ %</label><input type="number" id="apConf" value="0" min="0" max="100" step="1" oninput="renderApriori()" onblur="apClampField('apConf')" onkeydown="if(event.key==='Enter')this.blur()"></div>
+        <div class="ap-f"><label>Support ≥ %</label><input type="number" id="apSup" value="0" min="0" max="100" step="1" oninput="renderApriori()" onblur="apClampField('apSup')" onkeydown="if(event.key==='Enter')this.blur()"></div>
+        <div class="ap-count" id="apCount"></div>
+      </div>
+
+      <div class="ap-sort-panel">
+        <div class="ap-sort-panel-label">Сортировать по (порядок = приоритет):</div>
+        <div class="ap-sort-list" id="apSortList"></div>
+        <select class="dsel" id="apSortAdd" onchange="apAddSortCriterion(this.value); this.value='';">
+          <option value="">+ добавить критерий</option>
+        </select>
+      </div>
+
+      <div class="ap-view-tabs">
+        <button class="ap-view-tab on" data-mode="functional" onclick="setApViewMode('functional')">Функциональный</button>
+        <button class="ap-view-tab" data-mode="user" onclick="setApViewMode('user')">Для пользователя</button>
+      </div>
+
+      <div id="aprioriList" class="scroll-box"></div>
+      <div id="aprioriListUser" class="scroll-box" style="display:none"></div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-hd">Сводка фактов и рекордов</div>
+    <div id="lpWrap_facts" style="margin-bottom:10px"></div>
+    <button class="csv-export-btn" id="btnExportFactsTab" onclick="exportActiveFactsTab()" style="margin-bottom:10px;display:none">⇩ CSV (текущая вкладка)</button>
+    <button class="pdf-export-btn" id="btnExportFactsTabPdf" onclick="exportActiveFactsTabToPDF()" style="margin-bottom:10px;display:none">⇩ PDF (текущая вкладка)</button>
+    <div class="fr-tabs" id="frTabs">
+      <button class="frtab on"  onclick="setFrTab('overview')">Рекорды</button>
+      <button class="frtab"     onclick="setFrTab('users')">Авторы</button>
+      <button class="frtab"     onclick="setFrTab('depots')">Депо</button>
+      <button class="frtab"     onclick="setFrTab('workspaces')">Воркспейсы</button>
+      <button class="frtab"     onclick="setFrTab('time')">Время</button>
+      <button class="frtab"     onclick="setFrTab('analytics')">Аналитика</button>
+      <button class="frtab"     onclick="setFrTab('statistics')">Статистика</button>
+      <button class="frtab"     onclick="setFrTab('filetypes')">Типы файлов</button>
+    </div>
+    <div class="frpanel on" id="frpanel-overview"></div>
+    <div class="frpanel"    id="frpanel-users"></div>
+    <div class="frpanel"    id="frpanel-depots"></div>
+    <div class="frpanel"    id="frpanel-workspaces"></div>
+    <div class="frpanel"    id="frpanel-time"></div>
+    <div class="frpanel"    id="frpanel-analytics"></div>
+    <div class="frpanel"    id="frpanel-statistics"></div>
+    <div class="frpanel"    id="frpanel-filetypes"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-hd">
+      Bus Factor
+      <div class="sec-hd-right">
+        <div class="seg" id="bfViewSeg">
+          <button class="sb on" data-view="impact" onclick="setBfView('impact')">Влияние авторов</button>
+          <button class="sb" data-view="depots" onclick="setBfView('depots')">По депо</button>
+          <button class="sb" data-view="files" onclick="setBfView('files')">Файлы с 1 автором</button>
+          <button class="sb" data-view="ownership" onclick="setBfView('ownership')">Ownership</button>
+          <button class="sb" data-view="bytype" onclick="setBfView('bytype')">По типам файлов</button>
+          <button class="sb" data-view="handoff" onclick="setBfView('handoff')">Готовность к передаче</button>
+        </div>
+      </div>
+    </div>
+    <div class="card cb">
+      <div class="bf-filters-bar">
+        <div id="lpWrap_busfactor"></div>
+        <button class="csv-export-btn" onclick="exportBusFactorToCSV()">⇩ CSV (текущий вид)</button>
+        <button class="pdf-export-btn" onclick="exportBusFactorToPDF()">⇩ PDF</button>
+        <button class="csv-export-btn" onclick="exportAllBusFactorViews()">⇩ CSV (все виды)</button>
+        <button class="pdf-export-btn" onclick="exportAllBusFactorViewsToPDF()">⇩ PDF</button>
+        <div class="bf-filter-item">
+          <label>Считать по</label>
+          <div class="seg" id="bfDimSeg">
+            <button class="sb on" data-dim="author" onclick="setBfDimension('author')">Авторам</button>
+            <button class="sb" data-dim="workspace" onclick="setBfDimension('workspace')">Воркспейсам</button>
+          </div>
+        </div>
+        <div id="df_busfactor"></div>
+        <div id="ws_busfactor"></div>
+        <div id="ext_busfactor"></div>
+        <div class="bf-filter-item">
+          <label id="bfCountLabel">Авторов на файл</label>
+          <div style="display:flex;gap:4px;">
+            <select class="dsel" id="bfCountOp" onchange="bfApplyCountFilter()" style="padding:3px 4px;font-size:11px;">
+              <option value="gte">≥</option>
+              <option value="eq">=</option>
+              <option value="lte">≤</option>
+            </select>
+            <input type="number" id="bfCountInput" min="1" placeholder="все"
+                   onblur="bfApplyCountFilter()" onkeydown="if(event.key==='Enter')this.blur()"
+                   style="width:50px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:3px 6px;font-size:11px;font-family:var(--mono);outline:none;">
+          </div>
+        </div>
+        <div class="bf-filter-item">
+          <label>Порог доминирования, %</label>
+          <input type="number" id="bfThresholdInput" value="80" min="0" max="100" step="5"
+                 onblur="bfClampThreshold()"
+                 onkeydown="if(event.key==='Enter')this.blur()"
+                 style="width:60px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:3px 6px;font-size:11px;font-family:var(--mono);outline:none;">
+        </div>
+      </div>
+      <div class="bf-layout">
+
+        <div class="bf-gauge-wrap">
+          <svg class="bf-gauge-svg" viewBox="0 0 180 100">
+            <defs>
+              <linearGradient id="bfGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:#f85149"/>
+                <stop offset="50%" style="stop-color:#f0883e"/>
+                <stop offset="100%" style="stop-color:#3fb950"/>
+              </linearGradient>
+            </defs>
+
+            <path d="M 20 90 A 70 70 0 0 1 160 90" fill="none" stroke="#30363d" stroke-width="12" stroke-linecap="round"/>
+
+            <path id="bfArc" d="M 20 90 A 70 70 0 0 1 160 90" fill="none" stroke="url(#bfGrad)" stroke-width="12" stroke-linecap="round" stroke-dasharray="220" stroke-dashoffset="0"/>
+
+            <line id="bfNeedle" x1="90" y1="90" x2="90" y2="28" stroke="#e6edf3" stroke-width="2" stroke-linecap="round" transform="rotate(0 90 90)"/>
+            <circle cx="90" cy="90" r="4" fill="#e6edf3"/>
+          </svg>
+          <div class="bf-gauge-val" id="bfVal" style="color:var(--orange)">1.7</div>
+          <div class="bf-gauge-label">Bus Factor<br><span style="color:var(--muted);font-size:10px">ср. авторов на файл</span></div>
+          <div class="bf-stats">
+            <div class="bf-stat-row"><span class="bf-stat-lbl">Медиана авторов/файл</span><span class="bf-stat-val" id="bfMedian">—</span></div>
+            <div class="bf-stat-row"><span class="bf-stat-lbl">Файлов с 1 автором</span><span class="bf-stat-val" id="bfSingle" style="color:var(--red)">—</span></div>
+            <div class="bf-stat-row"><span class="bf-stat-lbl">Файлов с 2+ авторами</span><span class="bf-stat-val" id="bfMulti" style="color:var(--green)">—</span></div>
+            <div class="bf-stat-row"><span class="bf-stat-lbl">Уникальных файлов</span><span class="bf-stat-val" id="bfTotal">—</span></div>
+          </div>
+        </div>
+
+        <div class="bf-right" id="bfRight"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-hd">Timeline — динамика параметров</div>
+    <div class="card cb">
+      <div class="tl-axis-row">
+        <span class="tl-axis-lbl">Ось Y:</span>
+        <select class="dsel tl-param-select" id="tlParam" onchange="buildTimeline()">
+          <optgroup label="Активность">
+            <option value="commits">Количество сабмитов</option>
+            <option value="files_changed">Файлов изменено</option>
+            <option value="unique_authors">Уник. авторов</option>
+            <option value="commit_density">Плотность сабмитов (на день)</option>
+          </optgroup>
+          <optgroup label="Размер">
+            <option value="total_size_gb">Суммарный вес (ГБ)</option>
+            <option value="avg_size_mb">Средний вес сабмита (МБ)</option>
+            <option value="max_size_mb">Макс. вес сабмита (МБ)</option>
+            <option value="size_per_file_kb">Вес на файл (КБ)</option>
+          </optgroup>
+          <optgroup label="Файлы">
+            <option value="avg_files">Ср. файлов / сабмит</option>
+            <option value="max_files">Макс. файлов в сабмите</option>
+            <option value="new_ratio">Доля новых файлов</option>
+            <option value="edit_ratio">Доля edit (vs add/delete)</option>
+            <option value="delete_ratio">Доля удалений</option>
+          </optgroup>
+          <optgroup label="Ревизии">
+            <option value="avg_rev">Ср. ревизия файла</option>
+            <option value="max_rev">Макс. ревизия файла</option>
+            <option value="weighted_by_rev">Файлов × ревизий (weighted)</option>
+            <option value="rev_growth">Прирост ревизий</option>
+          </optgroup>
+          <optgroup label="Качество и аномалии">
+            <option value="desc_length">Длина описания (симв.)</option>
+            <option value="anomaly_rate">Доля аномалий (%)</option>
+            <option value="churn_proxy">Churn (изм. / уник. файлов)</option>
+            <option value="bus_factor_proxy">Bus Factor (ср. авт. / файл)</option>
+          </optgroup>
+          <optgroup label="Временные паттерны">
+            <option value="avg_hour">Средний час сабмита</option>
+            <option value="weekend_ratio">Доля сабмитов в выходные (%)</option>
+            <option value="night_ratio">Доля ночных (22–06, %)</option>
+          </optgroup>
+        </select>
+        <span class="tl-axis-lbl" style="margin-left:8px">Ось X:</span>
+        <select class="dsel tl-param-select" id="tlParamX" onchange="buildTimeline()">
+          <option value="time">Время (период)</option>
+          <optgroup label="Активность">
+            <option value="commits">Количество сабмитов</option>
+            <option value="files_changed">Файлов изменено</option>
+            <option value="unique_authors">Уник. авторов</option>
+            <option value="commit_density">Плотность сабмитов (на день)</option>
+          </optgroup>
+          <optgroup label="Размер">
+            <option value="total_size_gb">Суммарный вес (ГБ)</option>
+            <option value="avg_size_mb">Средний вес сабмита (МБ)</option>
+            <option value="max_size_mb">Макс. вес сабмита (МБ)</option>
+            <option value="size_per_file_kb">Вес на файл (КБ)</option>
+          </optgroup>
+          <optgroup label="Файлы">
+            <option value="avg_files">Ср. файлов / сабмит</option>
+            <option value="max_files">Макс. файлов в сабмите</option>
+            <option value="new_ratio">Доля новых файлов</option>
+            <option value="edit_ratio">Доля edit (vs add/delete)</option>
+            <option value="delete_ratio">Доля удалений</option>
+          </optgroup>
+          <optgroup label="Ревизии">
+            <option value="avg_rev">Ср. ревизия файла</option>
+            <option value="max_rev">Макс. ревизия файла</option>
+            <option value="weighted_by_rev">Файлов × ревизий (weighted)</option>
+            <option value="rev_growth">Прирост ревизий</option>
+          </optgroup>
+          <optgroup label="Качество и аномалии">
+            <option value="desc_length">Длина описания (симв.)</option>
+            <option value="anomaly_rate">Доля аномалий (%)</option>
+            <option value="churn_proxy">Churn (изм. / уник. файлов)</option>
+            <option value="bus_factor_proxy">Bus Factor (ср. авт. / файл)</option>
+          </optgroup>
+          <optgroup label="Временные паттерны">
+            <option value="avg_hour">Средний час сабмита</option>
+            <option value="weekend_ratio">Доля сабмитов в выходные (%)</option>
+            <option value="night_ratio">Доля ночных (22–06, %)</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="tl-controls">
+        <div>
+          <div class="ct" id="tlTitle">Количество сабмитов</div>
+          <div class="cs" id="tlSub" style="margin-bottom:0">по времени</div>
+        </div>
+        <div class="seg" id="tlGranSeg">
+          <button class="sb" onclick="setTlGran('day')">День</button>
+          <button class="sb on" onclick="setTlGran('week')">Неделя</button>
+          <button class="sb" onclick="setTlGran('month')">Месяц</button>
+        </div>
+
+        <select class="dsel" id="tlYearSel" onchange="setTlYear(this.value)" style="min-width:110px;">
+          <option value="all">За всё время</option>
+        </select>
+        <div id="lpWrap_timeline"></div>
+
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="tl-axis-lbl">Шаг сетки Y:</span>
+          <select class="dsel" id="tlYStep" onchange="buildTimeline()" style="min-width:90px;">
+            <option value="auto">Авто</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="5">5</option>
+            <option value="10">10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="tl-axis-lbl">Шаг сетки X:</span>
+          <select class="dsel" id="tlXStep" onchange="buildTimeline()" style="min-width:90px;">
+            <option value="auto">Авто</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="5">5</option>
+            <option value="10">10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="tl-entity-row" id="tlEntityRow"></div>
+      <div class="tl-chart-wrap" style="height:240px;position:relative;">
+        <div class="chart-zoom-wrap" style="position:relative;height:100%">
+          <canvas id="tlChart"></canvas>
+          <button class="chart-zoom-btn" onclick="openCzm('tlChart','Timeline — динамика параметров')" title="Развернуть">⤢</button>
+          <button class="csv-export-btn" style="position:absolute;top:8px;right:38px;" onclick="exportChartToCSV('tlChart','timeline.csv')">⇩ CSV</button>
+          <button class="pdf-export-btn" style="position:absolute;top:8px;right:96px;" onclick="exportTimelineToPDF()">⇩ PDF</button>
+        </div>
+      </div>
+      <div class="tl-legend" id="tlLegend"></div>
+    </div>
+  </section>
+
+  <div class="czm-overlay" id="czmOverlay" onclick="if(event.target===this)closeCzm()">
+    <div class="czm-inner">
+      <button class="czm-close" onclick="closeCzm()" title="Закрыть">✕</button>
+      <div class="czm-hd">
+        <div>
+          <div class="czm-title" id="czmTitle"></div>
+          <div class="czm-sub" id="czmSub"></div>
+        </div>
+        <div class="czm-tools" id="czmTools">
+          <button class="czm-reset" onclick="if(window._czmChart)window._czmChart.resetZoom()" title="Сбросить масштаб">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3a5 5 0 104.546 2.914.5.5 0 01.908-.417A6 6 0 118 2v1z"/><path d="M8 4.466V.534a.25.25 0 01.41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 018 4.466z"/></svg>
+            Сбросить масштаб
+          </button>
+          <span class="czm-hint">колесо / пинч — зум · перетаскивание — панорама · двойной клик — сброс</span>
+        </div>
+        <button class="pdf-export-btn" onclick="pdfExportZoomedChart()" title="Экспортировать увеличенный график в PDF">⇩ PDF</button>
+      </div>
+      <div class="czm-chart-wrap">
+        <canvas id="czmChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="tl-color-pop" id="tlColorPop">
+    <div class="tl-color-pop-swatches" id="tlColorPopSwatches"></div>
+    <div class="tl-color-pop-custom">
+      <input type="color" id="tlColorPopCustom" oninput="tlColorPopApply(this.value)">
+      <span>свой цвет</span>
+      <button class="tl-color-pop-close" onclick="tlCloseColorPop()">Готово</button>
+    </div>
+  </div>
+
+  <section class="sec">
+    <div class="sec-hd">
+      Hot Files &amp; Churn
+      <div class="sec-hd-right">
+        <div class="seg" id="hfTabSeg">
+          <button class="sb on" onclick="setHfTab('hot')">Горячие</button>
+          <button class="sb"    onclick="setHfTab('churn')">Churn</button>
+          <button class="sb"    onclick="setHfTab('cold')">Холодные</button>
+          <button class="sb"    onclick="setHfTab('new')">Новые</button>
+        </div>
+      </div>
+    </div>
+    <div class="card cb">
+      <div class="hf-controls" style="flex-wrap:wrap;gap:10px;">
+        <div class="seg" id="hfDimSeg">
+          <button class="sb on" data-dim="author" onclick="setHfDimension('author')">Авторы</button>
+          <button class="sb" data-dim="workspace" onclick="setHfDimension('workspace')">Воркспейсы</button>
+        </div>
+        <div id="df_hotfiles"></div>
+        <div id="ws_hotfiles"></div>
+        <div id="ext_hotfiles"></div>
+        <div id="lpWrap_hotfiles"></div>
+        <button class="csv-export-btn" onclick="exportHtmlTableToCSV('hfTable','hot_files_'+hfTab+'.csv')">⇩ CSV (эта вкладка)</button>
+        <button class="pdf-export-btn" onclick="exportHotFilesToPDF()">⇩ PDF</button>
+        <button class="csv-export-btn" onclick="exportAllHotFilesTabs()">⇩ CSV (все вкладки)</button>
+        <button class="pdf-export-btn" onclick="exportAllHotFilesTabsToPDF()">⇩ PDF</button>
+      </div>
+      <div class="hf-controls">
+        <div>
+          <div class="ct" id="hfTitle">Горячие файлы</div>
+          <div class="cs" id="hfSub">наибольшее число изменений за период</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px;">
+          <select class="dsel" id="hfSort" onchange="buildHotFiles()">
+            <option value="edits">По изменениям</option>
+            <option value="authors">По числу авторов</option>
+            <option value="revisions">По ревизиям</option>
+            <option value="size">По объёму правок</option>
+            <option value="last_edit">По дате последнего изм.</option>
+            <option value="churn_rate">По churn rate</option>
+            <option value="refactor">По риску (рефакторинг)</option>
+          </select>
+          <input type="number" id="hfLimit" value="20" min="1"
+                 onblur="hfClampLimit()" onkeydown="if(event.key==='Enter')this.blur()"
+                 style="width:64px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;font-size:11px;font-family:var(--mono);outline:none;" title="Количество файлов">
+          <button class="csv-export-btn" onclick="exportHtmlTableToCSV('hfTable','hot_files.csv')">⇩ CSV</button>
+          <button class="pdf-export-btn" onclick="exportHotFilesToPDF()">⇩ PDF</button>
+        </div>
+      </div>
+      <div class="hf-layout">
+        <div class="scroll-box scroll-box-lg" style="overflow-x:auto;">
+          <table class="hf-table" id="hfTable">
+            <thead><tr>
+              <th class="hf-rank">#</th>
+              <th>Файл</th>
+              <th>Авт.</th>
+              <th class="hf-bar-cell">Активность</th>
+              <th class="hf-metric" id="hfMetricHd">Изм./Rev.</th>
+            </tr></thead>
+            <tbody id="hfTbody"></tbody>
+          </table>
+        </div>
+        <div>
+          <div class="hf-detail" id="hfDetail">
+            <div class="hf-detail-hd">
+              <div class="hf-detail-name" id="hfDetailName"></div>
+              <button class="hf-detail-close" onclick="closeHfDetail()">Закрыть</button>
+            </div>
+            <div class="hf-dgrid" id="hfDGrid"></div>
+            <div class="hf-ownership" id="hfOwnership"></div>
+            <div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Churn по неделям</div>
+            <div class="hf-churn-wrap"><div class="chart-zoom-wrap" style="position:relative;height:100%">
+              <canvas id="hfChurnChart"></canvas>
+              <button class="chart-zoom-btn" onclick="openCzm('hfChurnChart','История изменений файла')" title="Развернуть">⤢</button>
+            </div></div>
+          </div>
+          <div class="hf-empty" id="hfEmpty">Нажмите на файл — увидите детали</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="fdm-overlay" id="fdmOverlay" onclick="closeFdm(event)">
+  <div class="fdm" id="fdm">
+    <div class="fdm-hd">
+      <div class="fdm-stripe" id="fdmStripe"></div>
+      <div class="fdm-hd-info">
+        <div class="fdm-label" id="fdmLabel"></div>
+        <div class="fdm-val" id="fdmVal"></div>
+        <div class="fdm-sub" id="fdmSub"></div>
+      </div>
+      <button class="fdm-close" onclick="document.getElementById('fdmOverlay').classList.remove('on')">✕</button>
+    </div>
+    <div class="fdm-body" id="fdmBody"></div>
+  </div>
+</div>
+
+<footer><span>Perforce Analytics — burgettakeout · Сгенерировано: 2026-06-27</span><span id="footerInfo">Perforce Analytics</span></footer>
+
+<div class="modal-overlay" id="colorSettingsModal" onclick="if(event.target===this)closeColorSettings()">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-hd-info"><div class="modal-hd-name">Цвета</div></div>
+      <button class="modal-close" onclick="closeColorSettings()">&times;</button>
+    </div>
+    <div class="modal-body" id="colorSettingsBody"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="authorModal" onclick="if(event.target===this)closeAuthorModal()">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-hd-av" id="mAv"></div>
+      <div class="modal-hd-info">
+        <div class="modal-hd-name" id="mName"></div>
+        <div class="modal-hd-sub" id="mSub"></div>
+      </div>
+      <button class="modal-close" onclick="closeAuthorModal()">&times;</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab" onclick="setModalTab('overview')">Обзор</button>
+      <button class="modal-tab" onclick="setModalTab('records')">Рекорды</button>
+      <button class="modal-tab" onclick="setModalTab('files')">Файлы</button>
+      <button class="modal-tab" onclick="setModalTab('time')">Активность по времени</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-panel" id="mpanel-overview"></div>
+      <div class="modal-panel" id="mpanel-records"></div>
+      <div class="modal-panel" id="mpanel-files"></div>
+      <div class="modal-panel" id="mpanel-time"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="entityModal" onclick="if(event.target===this)closeEntityModal()">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-hd-av" id="emAv"></div>
+      <div class="modal-hd-info">
+        <div class="modal-hd-name" id="emName"></div>
+        <div class="modal-hd-sub" id="emSub"></div>
+      </div>
+      <button class="modal-close" onclick="closeEntityModal()">&times;</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab" onclick="setEntityModalTab('overview')">Обзор</button>
+      <button class="modal-tab" onclick="setEntityModalTab('records')">Рекорды</button>
+      <button class="modal-tab" onclick="setEntityModalTab('files')">Файлы</button>
+      <button class="modal-tab" onclick="setEntityModalTab('time')">Активность по времени</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-panel" id="empanel-overview"></div>
+      <div class="modal-panel" id="empanel-records"></div>
+      <div class="modal-panel" id="empanel-files"></div>
+      <div class="modal-panel" id="empanel-time"></div>
+    </div>
+  </div>
+</div>
+
+<div id="loadingOverlay" style="position:fixed;inset:0;background:var(--bg,#0d1117);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;font-family:-apple-system,sans-serif;">
+  <div style="width:36px;height:36px;border:3px solid #30363d;border-top-color:#58a6ff;border-radius:50%;animation:loadspin 0.8s linear infinite;"></div>
+  <div id="loadingText" style="color:#7d8590;font-size:13px;">Загрузка данных с сервера…</div>
+  <style>@keyframes loadspin { to { transform: rotate(360deg); } }</style>
+</div>
+
+<script type="module">
+
+  const API_BASE = window.ANALYTICS_API_BASE || 'http://localhost:8080';
+
+  const SCRIPTS_AFTER_DATA = [
+    'js/data.js', 'js/state.js', 'js/lib/dropdown-picker.js', 'js/lib/analytics.js',
+    'js/depot-picker.js', 'js/workspace-picker.js', 'js/sections/color-settings.js',
+    'js/sections/print-summary.js', 'js/charts/kpi.js', 'js/global-filter.js', 'js/charts/heatmap.js',
+    'js/charts/avg.js', 'js/charts/trend.js', 'js/sections/trend-authors.js',
+    'js/charts/authors.js', 'js/charts/files.js', 'js/sections/anomalies.js',
+    'js/sections/apriori.js', 'js/sections/facts.js', 'js/sections/facts-modal.js',
+    'js/sections/bus-factor.js', 'js/timeline.js', 'js/sections/zoom-modal.js',
+    'js/sections/hot-files.js', 'js/init.js', 'js/sections/authors-filters-init.js',
+  ];
+
+  function loadScriptSequentially(src) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = () => reject(new Error('Не удалось загрузить ' + src));
+      document.body.appendChild(s);
+    });
+  }
+
+  function setLoadingText(text) {
+    const el = document.getElementById('loadingText');
+    if (el) el.textContent = text;
+  }
+
+  async function bootstrap() {
+    try {
+      setLoadingText('Загрузка сырых сабмитов…');
+      const commitsRes = await fetch(`${API_BASE}/api/commits`);
+      if (!commitsRes.ok) throw new Error(`GET /api/commits -> HTTP ${commitsRes.status}`);
+      window.RAW_COMMITS = await commitsRes.json();
+
+      setLoadingText('Расчёт аналитики (обычно 2-5 секунд)…');
+      const reportRes = await fetch(`${API_BASE}/api/analytics/recalculate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!reportRes.ok) throw new Error(`POST /api/analytics/recalculate -> HTTP ${reportRes.status}`);
+      window.PYTHON_REPORT = await reportRes.json();
+
+      setLoadingText('Построение дашборда…');
+      for (const src of SCRIPTS_AFTER_DATA) {
+        await loadScriptSequentially(src);
+      }
+
+      document.getElementById('loadingOverlay').remove();
+    } catch (err) {
+      console.error('[bootstrap] Ошибка загрузки:', err);
+      setLoadingText('Ошибка загрузки: ' + err.message + ' — проверьте, что Java-приложение запущено на ' + API_BASE);
+    }
+  }
+
+  bootstrap();
+</script>
+
+</body>
+</html>
