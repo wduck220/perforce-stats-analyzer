@@ -1,9 +1,10 @@
 import pika
 import json
+import os
 from analytics_pipeline import run_analytics_pipeline
 
 QUEUE = 'analyzer.queue'
-RABBITMQ_HOST = 'localhost'
+RABBITMQ_HOST = os.environ.get('RABBITMQ_HOST', 'localhost')
 
 
 def callback(ch, method, properties, body):
@@ -71,3 +72,6 @@ def start_consuming():
         channel.stop_consuming()
     finally:
         connection.close()
+
+if __name__ == "__main__":
+    start_consuming()

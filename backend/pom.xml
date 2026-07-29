@@ -19,7 +19,6 @@
     <properties>
        <java.version>17</java.version>
        <lombok.version>1.18.32</lombok.version>
-       <!-- Используем стабильную версию P4Java -->
        <p4java.version>2024.1.2612262</p4java.version>
     </properties>
 
@@ -29,8 +28,6 @@
           <artifactId>spring-boot-starter</artifactId>
        </dependency>
 
-       <!-- Добавлено — нужен для @RestController (/api/analytics/recalculate).
-            Без него в проекте физически негде принять HTTP-запрос от дашборда. -->
        <dependency>
           <groupId>org.springframework.boot</groupId>
           <artifactId>spring-boot-starter-web</artifactId>
@@ -44,6 +41,32 @@
        <dependency>
           <groupId>org.springframework.boot</groupId>
           <artifactId>spring-boot-starter-json</artifactId>
+       </dependency>
+
+       <dependency>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-data-jpa</artifactId>
+       </dependency>
+       <dependency>
+          <groupId>org.postgresql</groupId>
+          <artifactId>postgresql</artifactId>
+          <scope>runtime</scope>
+       </dependency>
+
+       <dependency>
+          <groupId>com.github.mwiede</groupId>
+          <artifactId>jsch</artifactId>
+          <version>2.28.3</version>
+       </dependency>
+
+       <dependency>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-security</artifactId>
+       </dependency>
+
+       <dependency>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-mail</artifactId>
        </dependency>
 
        <dependency>

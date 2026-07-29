@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Вход · Perforce Analytics</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --s1: #161b22;
+    --s2: #21262d;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --blue: #58a6ff;
+    --red: #f85149;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+  }
+  .login-card {
+    width: 360px;
+    background: var(--s1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 32px 28px;
+  }
+  .login-title {
+    color: var(--text);
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .login-sub {
+    color: var(--muted);
+    font-size: 12px;
+    margin-bottom: 24px;
+  }
+  label {
+    display: block;
+    color: var(--muted);
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+  input {
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: 16px;
+    background: var(--s2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 14px;
+  }
+  input:focus {
+    outline: none;
+    border-color: var(--blue);
+  }
+  button {
+    width: 100%;
+    padding: 11px;
+    background: var(--blue);
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:hover { opacity: 0.9; }
+  .error-msg {
+    background: rgba(248, 81, 73, 0.12);
+    border: 1px solid var(--red);
+    color: var(--red);
+    font-size: 12px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+  }
+  .hint {
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 18px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+  <div class="login-card">
+    <div class="login-title">Perforce Analytics</div>
+    <div class="login-sub">Вход по вашему логину и паролю Perforce</div>
+
+    <div class="error-msg" id="errorMsg" style="display:none;">
+      Неверный логин или пароль.
+    </div>
+
+    <form method="post" action="/login">
+      <label for="username">Логин</label>
+      <input type="text" id="username" name="username" autocomplete="username" required>
+
+      <label for="password">Пароль</label>
+      <input type="password" id="password" name="password" autocomplete="current-password" required>
+
+      <button type="submit">Войти</button>
+    </form>
+
+    <div class="hint">Используются те же учётные данные, что и в Perforce.</div>
+  </div>
+
+  <script>
+    if (window.location.search.includes('error')) {
+      document.getElementById('errorMsg').style.display = 'block';
+    }
+  </script>
+
+</body>
+</html>

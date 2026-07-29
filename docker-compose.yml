@@ -3,13 +3,60 @@ services:
     image: rabbitmq:3.13-management
     ports:
       - "5672:5672"
+      - "15672:15672"
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: perforce_analytics
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
 
   backend:
     build: ./backend
+    restart: always
     depends_on:
       - rabbitmq
+      - postgres
+    ports:
+      - "8443:8443"
+    volumes:
+      - certs_data:/app/certs
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/perforce_analytics
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      PERFORCE_HOST: ${PERFORCE_HOST}
+      PERFORCE_PORT: ${PERFORCE_PORT}
+      PERFORCE_USER: ${PERFORCE_USER}
+      PERFORCE_PASSWORD: ${PERFORCE_PASSWORD}
+      PERFORCE_TRIGGER_SCRIPT_PATH: ${PERFORCE_TRIGGER_SCRIPT_PATH}
+      PERFORCE_TRIGGER_SECRET: ${PERFORCE_TRIGGER_SECRET}
+      PERFORCE_SSH_HOST: ${PERFORCE_SSH_HOST}
+      PERFORCE_SSH_PORT: ${PERFORCE_SSH_PORT}
+      PERFORCE_SSH_USER: ${PERFORCE_SSH_USER}
+      PERFORCE_SSH_PASSWORD: ${PERFORCE_SSH_PASSWORD}
+      SSL_KEYSTORE_PASSWORD: ${SSL_KEYSTORE_PASSWORD}
+      SERVER_PUBLIC_HOST: ${SERVER_PUBLIC_HOST}
+      REPORT_EMAIL_RECIPIENT: ${REPORT_EMAIL_RECIPIENT}
+      REPORT_DASHBOARD_URL: ${REPORT_DASHBOARD_URL}
+      REPORT_SYNC_INTERVAL_MS: ${REPORT_SYNC_INTERVAL_MS}
 
   analyzer:
     build: ./analyzer
+    restart: always
     depends_on:
       - rabbitmq
+    environment:
+      RABBITMQ_HOST: rabbitmq
+
+volumes:
+  pgdata:
+  certs_data:

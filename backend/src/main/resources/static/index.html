@@ -1231,7 +1231,12 @@
 
 <script type="module">
 
-  const API_BASE = window.ANALYTICS_API_BASE || 'http://localhost:8080';
+  const API_BASE = window.ANALYTICS_API_BASE || '';
+
+  function getCsrfToken() {
+    const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : null;
+  }
 
   const SCRIPTS_AFTER_DATA = [
     'js/data.js', 'js/state.js', 'js/lib/dropdown-picker.js', 'js/lib/analytics.js',
@@ -1269,7 +1274,10 @@
       setLoadingText('Расчёт аналитики (обычно 2-5 секунд)…');
       const reportRes = await fetch(`${API_BASE}/api/analytics/recalculate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-XSRF-TOKEN': getCsrfToken(),
+        },
         body: JSON.stringify({}),
       });
       if (!reportRes.ok) throw new Error(`POST /api/analytics/recalculate -> HTTP ${reportRes.status}`);
@@ -1283,7 +1291,7 @@
       document.getElementById('loadingOverlay').remove();
     } catch (err) {
       console.error('[bootstrap] Ошибка загрузки:', err);
-      setLoadingText('Ошибка загрузки: ' + err.message + ' — проверьте, что Java-приложение запущено на ' + API_BASE);
+      setLoadingText('Ошибка загрузки: ' + err.message + ' — проверьте, что backend запущен и доступен.');
     }
   }
 
